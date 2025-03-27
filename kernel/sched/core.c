@@ -1328,6 +1328,13 @@ static void set_load_weight(struct task_struct *p, bool update_load)
 {
 	int prio = p->static_prio - MAX_RT_PRIO;
 	struct load_weight *load = &p->se.load;
+	/*
+	* OS_PROJECT: this is where the real magic happens
+	*/
+	if (task_has_user_policy(p)) {
+		int USER_SCALING_FACTOR = 1;
+		prio = (prio - USER_SCALING_FACTOR > 0) ? (prio - USER_SCALING_FACTOR) : 0;
+	}
 
 	/*
 	 * SCHED_IDLE tasks get minimal weight:
@@ -7591,7 +7598,7 @@ static void __setscheduler_params(struct task_struct *p,
 
 	if (dl_policy(policy))
 		__setparam_dl(p, attr);
-	else if (fair_policy(policy))
+	else if (fair_policy(policy) || user_policy(policy))
 		p->static_prio = NICE_TO_PRIO(attr->sched_nice);
 
 	/*
@@ -7663,6 +7670,14 @@ static int user_check_sched_setscheduler(struct task_struct *p,
 			goto req_priv;
 	}
 
+	/* OS_PROJECT: whatever happens here...*/
+
+	if (task_has_user_policy(p) && !user_policy(policy)) {
+
+	}
+
+
+
 	/* Can't change other user's priorities: */
 	if (!check_same_owner(p))
 		goto req_priv;
@@ -7698,6 +7713,7 @@ static int __sched_setscheduler(struct task_struct *p,
 	BUG_ON(pi && in_interrupt());
 recheck:
 	/* Double check policy once rq lock held: */
+	/* OS_PROJECT: i think this are the non-idle jobs? */
 	if (policy < 0) {
 		reset_on_fork = p->sched_reset_on_fork;
 		policy = oldpolicy = p->policy;
@@ -7716,6 +7732,7 @@ recheck:
 	 * 1..MAX_RT_PRIO-1, valid priority for SCHED_NORMAL,
 	 * SCHED_BATCH and SCHED_IDLE is 0.
 	 */
+	/* OS_PROJECT: here some magic might happen */
 	if (attr->sched_priority > MAX_RT_PRIO-1)
 		return -EINVAL;
 	if ((dl_policy(policy) && !__checkparam_dl(attr)) ||
@@ -8021,6 +8038,16 @@ void sched_set_normal(struct task_struct *p, int nice)
 	WARN_ON_ONCE(sched_setattr_nocheck(p, &attr) != 0);
 }
 EXPORT_SYMBOL_GPL(sched_set_normal);
+
+void sched_set_user(struct task_struct *p, int nice)
+{
+	struct sched_attr attr = {
+		.sched_policy = SCHED_USER,
+		.sched_nice = nice,
+	};
+	WARN_ON_ONCE(sched_setattr_nocheck(p, &attr) != 0);
+}
+EXPORT_SYMBOL_GPL(sched_set_user);
 
 static int
 do_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)
@@ -9043,6 +9070,7 @@ SYSCALL_DEFINE1(sched_get_priority_max, int, policy)
 		ret = MAX_RT_PRIO-1;
 		break;
 	case SCHED_DEADLINE:
+	case SCHED_USER:
 	case SCHED_NORMAL:
 	case SCHED_BATCH:
 	case SCHED_IDLE:
@@ -9070,6 +9098,7 @@ SYSCALL_DEFINE1(sched_get_priority_min, int, policy)
 		ret = 1;
 		break;
 	case SCHED_DEADLINE:
+	case SCHED_USER:
 	case SCHED_NORMAL:
 	case SCHED_BATCH:
 	case SCHED_IDLE:

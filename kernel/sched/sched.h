@@ -175,6 +175,10 @@ static inline int fair_policy(int policy)
 {
 	return policy == SCHED_NORMAL || policy == SCHED_BATCH;
 }
+static inline int user_policy(int policy)
+{
+	return policy == SCHED_USER;
+}
 
 static inline int rt_policy(int policy)
 {
@@ -189,6 +193,11 @@ static inline bool valid_policy(int policy)
 {
 	return idle_policy(policy) || fair_policy(policy) ||
 		rt_policy(policy) || dl_policy(policy);
+}
+
+static inline int task_has_idle_policy(struct task_struct *p)
+{
+	return idle_policy(p->policy);
 }
 
 static inline int task_has_idle_policy(struct task_struct *p)
@@ -2199,6 +2208,9 @@ static_assert(WF_TTWU == SD_BALANCE_WAKE);
 #define WEIGHT_IDLEPRIO		3
 #define WMULT_IDLEPRIO		1431655765
 
+#define WEIGHT_USERPRIO		3
+#define WMULT_USERPRIO		1
+
 extern const int		sched_prio_to_weight[40];
 extern const u32		sched_prio_to_wmult[40];
 
@@ -2362,6 +2374,7 @@ extern struct sched_class __sched_class_lowest[];
 extern const struct sched_class stop_sched_class;
 extern const struct sched_class dl_sched_class;
 extern const struct sched_class rt_sched_class;
+extern const struct sched_class user_sched_class;
 extern const struct sched_class fair_sched_class;
 extern const struct sched_class idle_sched_class;
 

@@ -533,24 +533,25 @@ struct sched_statistics {
 #endif /* CONFIG_SCHEDSTATS */
 } ____cacheline_aligned;
 
+/* OS_PROJECT: this is what we have to edit */
 struct sched_entity {
 	/* For load-balancing: */
-	struct load_weight		load;
-	struct rb_node			run_node;
+	struct load_weight		load; // the load of this process (the weight we used in CFS)
+	struct rb_node			run_node; // the RB tree node for this process
 	u64				deadline;
 	u64				min_vruntime;
 
 	struct list_head		group_node;
-	unsigned int			on_rq;
+	unsigned int			on_rq; // task is on runqueue
 
-	u64				exec_start;
-	u64				sum_exec_runtime;
-	u64				prev_sum_exec_runtime;
-	u64				vruntime;
+	u64				exec_start; // starting time of the process in the last scheduling tick period
+	u64				sum_exec_runtime; // total runtime of the process till now
+	u64				prev_sum_exec_runtime; // total runtime of the process till the beginning of the last scheduling period
+	u64				vruntime; // virtual runtime
 	s64				vlag;
 	u64				slice;
 
-	u64				nr_migrations;
+	u64				nr_migrations; // number of times this process is migrated between CPUs
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	int				depth;
@@ -573,6 +574,7 @@ struct sched_entity {
 	struct sched_avg		avg;
 #endif
 };
+/* OS_PROJECT: end */
 
 struct sched_rt_entity {
 	struct list_head		run_list;
@@ -745,6 +747,7 @@ struct kmap_ctrl {
 #endif
 };
 
+/* OS_PROJECT: watch this */
 struct task_struct {
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 	/*
@@ -789,16 +792,22 @@ struct task_struct {
 #endif
 	int				on_rq;
 
-	int				prio;
-	int				static_prio;
-	int				normal_prio;
-	unsigned int			rt_priority;
+	/* OS_PROJECT: here are the priorities */
+	int				prio; // the actual priority of the process used by the scheduler
+	int				static_prio; // the static priority of the process from the nice value
+	int				normal_prio; // the priority based on the static priority and the scheduling policy
+	unsigned int			rt_priority; // real time priority (a number between 0 and 99)
 
+	// different scheduling entity structures corresponding to fair, rt, and
+	// deadline class. The applicable structure is used depending on the scheduling
+	// class of the process
 	struct sched_entity		se;
 	struct sched_rt_entity		rt;
 	struct sched_dl_entity		dl;
 	struct sched_dl_entity		*dl_server;
 	const struct sched_class	*sched_class;
+	/* OS_PROJECT: end */
+
 
 #ifdef CONFIG_SCHED_CORE
 	struct rb_node			core_node;

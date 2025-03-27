@@ -116,7 +116,7 @@ result.
 
 
 
-5. Scheduling policies
+5. Scheduling policies!
 ======================
 
 CFS implements three scheduling policies:

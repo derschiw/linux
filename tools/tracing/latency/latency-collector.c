@@ -142,6 +142,7 @@ struct policy {
 static const struct policy policies[] = {
 	{ "other", SCHED_OTHER, DEFAULT_PRI    },
 	{ "batch", SCHED_BATCH, DEFAULT_PRI    },
+	{ "user",  SCHED_USER,  DEFAULT_PRI    },
 	{ "idle",  SCHED_IDLE,  DEFAULT_PRI    },
 	{ "rr",    SCHED_RR,    RT_DEFAULT_PRI },
 	{ "fifo",  SCHED_FIFO,  RT_DEFAULT_PRI },

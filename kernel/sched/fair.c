@@ -6786,7 +6786,9 @@ enqueue_throttle:
 
 	hrtick_update(rq);
 }
-
+enqueue_task_user(struct rq *rq, struct task_struct *p, int flags){
+	enqueue_task_fair(rq ,p, flags);
+}
 static void set_next_buddy(struct sched_entity *se);
 
 /*
@@ -8305,6 +8307,12 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
 	if (unlikely(task_has_idle_policy(curr)) &&
 	    likely(!task_has_idle_policy(p)))
 		goto preempt;
+
+	/* OS_PROJECT: maybe do something here  */
+	if (unlikely(task_has_user_policy(curr)) &&
+	    likely(!task_has_user_policy(p))){
+				// Do something here
+	}
 
 	/*
 	 * Batch and idle tasks do not preempt non-idle tasks (their preemption
