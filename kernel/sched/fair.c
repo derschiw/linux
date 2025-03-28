@@ -6786,9 +6786,10 @@ enqueue_throttle:
 
 	hrtick_update(rq);
 }
-enqueue_task_user(struct rq *rq, struct task_struct *p, int flags){
-	enqueue_task_fair(rq ,p, flags);
-}
+
+// enqueue_task_user(struct rq *rq, struct task_struct *p, int flags){
+// 	enqueue_task_fair(rq ,p, flags);
+// }
 static void set_next_buddy(struct sched_entity *se);
 
 /*
