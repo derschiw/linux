@@ -876,6 +876,16 @@ void start_kernel(void)
 	char *command_line;
 	char *after_dashes;
 
+	/* OS_PROJECT
+	* Print a message to the kernel log indicating that the custom kernel has started.
+	*/
+	printk(KERN_ALERT "   ____     _____            _  __  ______   _____    _   _ \n");
+	printk(KERN_ALERT "  / __ \\   / ____|          | |/ / |  ____| |  __ \\  | \\ | |\n");
+	printk(KERN_ALERT " | |  | | | (___    ______  | ' /  | |__    | |__) | |  \\| |\n");
+	printk(KERN_ALERT " | |  | |  \\___ \\  |______| |  <   |  __|   |  _  /  | . ` |\n");
+	printk(KERN_ALERT " | |__| |  ____) |          | . \\  | |____  | | \\ \\  | |\\  |\n");
+	printk(KERN_ALERT "  \\____/  |_____/           |_|\\_\\ |______| |_|  \\_\\ |_| \\_|\n");
+
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();
 	debug_objects_early_init();
