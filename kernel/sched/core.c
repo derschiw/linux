@@ -1332,8 +1332,10 @@ static void set_load_weight(struct task_struct *p, bool update_load)
 	* OS_PROJECT: this is where the real magic happens
 	*/
 	if (task_has_user_policy(p)) {
+		printk(KERN_INFO "OS_PROJECT: prev. prio = %d\n", prio);
 		int USER_SCALING_FACTOR = 1;
 		prio = (prio - USER_SCALING_FACTOR > 0) ? (prio - USER_SCALING_FACTOR) : 0;
+		printk(KERN_INFO "OS_PROJECT: new   prio = %d\n", prio);
 	}
 
 	/*
@@ -1351,9 +1353,15 @@ static void set_load_weight(struct task_struct *p, bool update_load)
 	 */
 	if (update_load && p->sched_class == &fair_sched_class) {
 		reweight_task(p, prio);
+		if (task_has_user_policy(p)) {
+			printk(KERN_INFO "OS_PROJECT: reweight_task called\n");
+		}
 	} else {
 		load->weight = scale_load(sched_prio_to_weight[prio]);
 		load->inv_weight = sched_prio_to_wmult[prio];
+		if (task_has_user_policy(p)) {
+			printk(KERN_INFO "OS_PROJECT: load->weight = %d\n", load->weight);
+		}
 	}
 }
 
@@ -7707,7 +7715,6 @@ static int __sched_setscheduler(struct task_struct *p,
 	int reset_on_fork;
 	int queue_flags = DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;
 	struct rq *rq;
-	bool cpuset_locked = false;
 
 	/* The pi code expects interrupts enabled */
 	BUG_ON(pi && in_interrupt());
@@ -7724,8 +7731,10 @@ recheck:
 			return -EINVAL;
 	}
 
-	if (attr->sched_flags & ~(SCHED_FLAG_ALL | SCHED_FLAG_SUGOV))
+	if (attr->sched_flags & ~(SCHED_FLAG_ALL | SCHED_FLAG_SUGOV)){
+		printk(KERN_INFO "OS_PROJECT: attr->sched_flags & ~(SCHED_FLAG_ALL | SCHED_FLAG_SUGOV returned -1\n");
 		return -EINVAL;
+	}
 
 	/*
 	 * Valid priorities for SCHED_FIFO and SCHED_RR are
@@ -7733,19 +7742,25 @@ recheck:
 	 * SCHED_BATCH and SCHED_IDLE is 0.
 	 */
 	/* OS_PROJECT: here some magic might happen */
-	if (attr->sched_priority > MAX_RT_PRIO-1)
+	if (attr->sched_priority > MAX_RT_PRIO-1){
+		printk(KERN_INFO "OS_PROJECT: attr->sched_priority > MAX_RT_PRIO-1 returned -1\n");
 		return -EINVAL;
+	}
 	if ((dl_policy(policy) && !__checkparam_dl(attr)) ||
-	    (rt_policy(policy) != (attr->sched_priority != 0)))
+	    (rt_policy(policy) != (attr->sched_priority != 0))){
+		printk(KERN_INFO "OS_PROJECT: dl_policy(policy) && !__checkparam_dl(attr) || (rt_policy(policy) != (attr->sched_priority != 0)) returned -1\n");
 		return -EINVAL;
+	}
 
 	if (user) {
 		retval = user_check_sched_setscheduler(p, attr, policy, reset_on_fork);
 		if (retval)
 			return retval;
 
-		if (attr->sched_flags & SCHED_FLAG_SUGOV)
+		if (attr->sched_flags & SCHED_FLAG_SUGOV){
+			printk(KERN_INFO "OS_PROJECT: attr->sched_flags & SCHED_FLAG_SUGOV returned -1\n");
 			return -EINVAL;
+		}
 
 		retval = security_task_setscheduler(p);
 		if (retval)
@@ -7936,6 +7951,11 @@ static int _sched_setscheduler(struct task_struct *p, int policy,
 		.sched_priority = param->sched_priority,
 		.sched_nice	= PRIO_TO_NICE(p->static_prio),
 	};
+
+	if (policy == 7) {
+		/* print something to the console */
+		printk(KERN_INFO "OS_PROJECT: SCHED_USER policy found: %d\n", policy);
+	}
 
 	/* Fixup the legacy SCHED_RESET_ON_FORK hack. */
 	if ((policy != SETPARAM_POLICY) && (policy & SCHED_RESET_ON_FORK)) {
