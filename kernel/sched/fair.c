@@ -263,6 +263,12 @@ static void __update_inv_weight(struct load_weight *lw)
  * Or, weight =< lw.weight (because lw.weight is the runqueue weight), thus
  * weight/lw.weight <= 1, and therefore our shift will also be positive.
  */
+
+/** 
+ * OS_PROJECT: this might acutally be the right place to implement the user
+ * based weight scaling. This is called by update_curr to recalculte the vruntime.
+ * 
+ */
 static u64 __calc_delta(u64 delta_exec, unsigned long weight, struct load_weight *lw)
 {
 	u64 fact = scale_load_down(weight);
@@ -1165,10 +1171,11 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	if (unlikely(delta_exec <= 0))
 		return;
 
+	/* OS_PROJECT: here the vruntime is calculated and updated  */
 	curr->vruntime += calc_delta_fair(delta_exec, curr);
 	update_deadline(cfs_rq, curr);
 	update_min_vruntime(cfs_rq);
-
+	
 	if (entity_is_task(curr))
 		update_curr_task(task_of(curr), delta_exec);
 
