@@ -1333,7 +1333,15 @@ static void set_load_weight(struct task_struct *p, bool update_load)
 	*/
 	if (task_has_user_policy(p)) {
 		printk(KERN_INFO "OS_PROJECT: prev. prio = %d\n", prio);
+		int task_uid_int = from_kuid(&init_user_ns, p->cred->uid);
 		int USER_SCALING_FACTOR = 1;
+		if (task_uid_int == 0) {
+			USER_SCALING_FACTOR = 10;
+			printk(KERN_INFO "OS_PROJECT: user is root\n");
+		} else {
+			USER_SCALING_FACTOR = 1;
+			printk(KERN_INFO "OS_PROJECT: user is not root\n");
+		}
 		prio = (prio - USER_SCALING_FACTOR > 0) ? (prio - USER_SCALING_FACTOR) : 0;
 		printk(KERN_INFO "OS_PROJECT: new   prio = %d\n", prio);
 	}
