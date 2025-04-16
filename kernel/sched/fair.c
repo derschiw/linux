@@ -296,13 +296,32 @@ static u64 __calc_delta(u64 delta_exec, unsigned long weight,
 	return mul_u64_u32_shr(delta_exec, fact, shift);
 }
 
+static u64 __calc_delta_user(u64 delta_exec, unsigned long weight,
+			struct load_weight *lw, kuid_t uid)
+{
+	printk(KERN_DEBUG "OS_PROJECT: __calc_delta_user called\n");
+	return __calc_delta(delta_exec, weight, lw);
+}
+
 /*
  * delta /= w
  */
 static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
 {
-	if (unlikely(se->load.weight != NICE_0_LOAD))
-		delta = __calc_delta(delta, NICE_0_LOAD, &se->load);
+	if (unlikely(se->load.weight != NICE_0_LOAD)) {
+		/* OS_PROJECT: inject group based delta function */
+		if (entity_is_task(se)) {
+			// Get the task from the sched_entity
+			struct task_struct *p = task_of(se);
+			if (p->policy == SCHED_USER) {
+				delta = __calc_delta_user(delta, NICE_0_LOAD, &se->load, p->cred->uid);
+			} else {
+				delta = __calc_delta(delta, NICE_0_LOAD, &se->load);
+			}
+		} else {
+			delta = __calc_delta(delta, NICE_0_LOAD, &se->load);
+		}
+	}
 
 	return delta;
 }
@@ -1167,6 +1186,7 @@ static void update_curr(struct cfs_rq *cfs_rq)
 		return;
 
 	/* OS_PROJECT: here the vruntime is calculated and updated  */
+
 	curr->vruntime += calc_delta_fair(delta_exec, curr);
 	update_deadline(cfs_rq, curr);
 	update_min_vruntime(cfs_rq);
