@@ -1328,23 +1328,6 @@ static void set_load_weight(struct task_struct *p, bool update_load)
 {
 	int prio = p->static_prio - MAX_RT_PRIO;
 	struct load_weight *load = &p->se.load;
-	/*
-	* OS_PROJECT: this is where the real magic happens
-	*/
-	if (task_has_user_policy(p)) {
-		printk(KERN_INFO "OS_PROJECT: prev. prio = %d\n", prio);
-		int task_uid_int = from_kuid(&init_user_ns, p->cred->uid);
-		int USER_SCALING_FACTOR = 1;
-		if (task_uid_int == 0) {
-			USER_SCALING_FACTOR = 10;
-			printk(KERN_INFO "OS_PROJECT: user is root\n");
-		} else {
-			USER_SCALING_FACTOR = 1;
-			printk(KERN_INFO "OS_PROJECT: user is not root\n");
-		}
-		prio = (prio - USER_SCALING_FACTOR > 0) ? (prio - USER_SCALING_FACTOR) : 0;
-		printk(KERN_INFO "OS_PROJECT: new   prio = %d\n", prio);
-	}
 
 	/*
 	 * SCHED_IDLE tasks get minimal weight:
@@ -7686,12 +7669,6 @@ static int user_check_sched_setscheduler(struct task_struct *p,
 			goto req_priv;
 	}
 
-	/* OS_PROJECT: whatever happens here...*/
-
-	if (task_has_user_policy(p) && !user_policy(policy)) {
-
-	}
-
 
 
 	/* Can't change other user's priorities: */
@@ -7751,14 +7728,11 @@ recheck:
 	 * 1..MAX_RT_PRIO-1, valid priority for SCHED_NORMAL,
 	 * SCHED_BATCH and SCHED_IDLE is 0.
 	 */
-	/* OS_PROJECT: here some magic might happen */
 	if (attr->sched_priority > MAX_RT_PRIO-1){
-		printk(KERN_INFO "OS_PROJECT: attr->sched_priority > MAX_RT_PRIO-1 returned -1\n");
 		return -EINVAL;
 	}
 	if ((dl_policy(policy) && !__checkparam_dl(attr)) ||
 	    (rt_policy(policy) != (attr->sched_priority != 0))){
-		printk(KERN_INFO "OS_PROJECT: dl_policy(policy) && !__checkparam_dl(attr) || (rt_policy(policy) != (attr->sched_priority != 0)) returned -1\n");
 		return -EINVAL;
 	}
 
@@ -7768,7 +7742,6 @@ recheck:
 			return retval;
 
 		if (attr->sched_flags & SCHED_FLAG_SUGOV){
-			printk(KERN_INFO "OS_PROJECT: attr->sched_flags & SCHED_FLAG_SUGOV returned -1\n");
 			return -EINVAL;
 		}
 
@@ -7964,7 +7937,7 @@ static int _sched_setscheduler(struct task_struct *p, int policy,
 
 	if (policy == 7) {
 		/* print something to the console */
-		printk(KERN_INFO "OS_PROJECT: SCHED_USER policy found: %d\n", policy);
+		printk(KERN_INFO "OS_PROJECT: scheduling job with SCHED_USER policy %d\n", policy);
 	}
 
 	/* Fixup the legacy SCHED_RESET_ON_FORK hack. */

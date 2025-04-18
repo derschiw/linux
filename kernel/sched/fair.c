@@ -264,8 +264,19 @@ static void __update_inv_weight(struct load_weight *lw)
  */
 
 /** 
- * OS_PROJECT: this might acutally be the right place to implement the user
- * based weight scaling. This is called by update_curr to recalculte the vruntime.
+ * OS_PROJECT: 
+ * 
+ * The __calc delta function is used the update the vruntime of a task. 
+ * It is called by the update_curr function via calc_delta_fair like this:
+ * 
+ * 	curr->vruntime += calc_delta_fair(delta_exec, curr);
+ * 
+ * So what we do is the following: 
+ *  
+ * 1. Filter task with SCHED_USER policy in calc_delta_fair
+ * 2. Call __calc_delta_user with the task's uid
+ * 3. Add custom logic to __calc_delta_user that mimics __calc_delta
+ *    but adds user based criteria to the delta calculation. 
  * 
  */
 static u64 __calc_delta(u64 delta_exec, unsigned long weight,
@@ -296,10 +307,18 @@ static u64 __calc_delta(u64 delta_exec, unsigned long weight,
 	return mul_u64_u32_shr(delta_exec, fact, shift);
 }
 
-/* OS_PROJECT: edit this function to add kernel functionality */
+/* OS_PROJECT: 
+ *
+ * This function is called by calc_delta_fair for tasks with SCHED_USER policy.
+ * 
+ * TODO: add custom logic to this function that mimics __calc_delta but adds
+ * user based criteria to the delta calculation.
+ * 
+*/
 static u64 __calc_delta_user(u64 delta_exec, unsigned long weight,
 			struct load_weight *lw, kuid_t uid)
 {
+	// TODO: Add logic here. We call __calc_delta for now to keep stuff running.
 	printk(KERN_DEBUG "OS_PROJECT: __calc_delta_user called\n");
 	return __calc_delta(delta_exec, weight, lw);
 }
@@ -307,16 +326,28 @@ static u64 __calc_delta_user(u64 delta_exec, unsigned long weight,
 /*
  * delta /= w
  */
+
+/* OS_PROJECT: 
+ * 
+ * This function is called by update_curr. Here we inject a filter to
+ * get all tasks with SCHED_USER policy and call __calc_delta_user. Since
+ * sched_entity is not a task, we need to get the task from the sched_entity
+ * to have information about the task's uid (and maybe other stuff).
+ * 
+ * */
+
 static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
 {
 	if (unlikely(se->load.weight != NICE_0_LOAD)) {
-		/* OS_PROJECT: inject group based delta function */
 		if (entity_is_task(se)) {
 			// Get the task from the sched_entity
 			struct task_struct *p = task_of(se);
-			if (p->policy == SCHED_USER) {
+
+			// Filter for SCHED_USER policy
+			if (task_has_user_policy(p)) {
 				delta = __calc_delta_user(delta, NICE_0_LOAD, &se->load, p->cred->uid);
 			} else {
+			// Proceed normal if task does not have SCHED_USER policy
 				delta = __calc_delta(delta, NICE_0_LOAD, &se->load);
 			}
 		} else {
@@ -1174,6 +1205,17 @@ s64 update_curr_common(struct rq *rq)
 /*
  * Update the current task's runtime statistics.
  */
+
+/**
+ * 
+ * OS_PROJECT: 
+ * 
+ * This is the function that updates the current task's runtime statistics. Our
+ * aim is to manipulate the vruntime of the current task based on user specific
+ * criteria.
+ * 
+ */
+
 static void update_curr(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *curr = cfs_rq->curr;
@@ -1186,8 +1228,7 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	if (unlikely(delta_exec <= 0))
 		return;
 
-	/* OS_PROJECT: here the vruntime is calculated and updated  */
-
+	/* OS_PROJECT: here the vruntime is calculated and updated. We hickjacked this function  */
 	curr->vruntime += calc_delta_fair(delta_exec, curr);
 	update_deadline(cfs_rq, curr);
 	update_min_vruntime(cfs_rq);
