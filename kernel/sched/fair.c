@@ -296,6 +296,7 @@ static u64 __calc_delta(u64 delta_exec, unsigned long weight,
 	return mul_u64_u32_shr(delta_exec, fact, shift);
 }
 
+/* OS_PROJECT: edit this function to add kernel functionality */
 static u64 __calc_delta_user(u64 delta_exec, unsigned long weight,
 			struct load_weight *lw, kuid_t uid)
 {
