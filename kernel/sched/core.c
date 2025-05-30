@@ -1344,15 +1344,15 @@ static void set_load_weight(struct task_struct *p, bool update_load)
 	 */
 	if (update_load && p->sched_class == &fair_sched_class) {
 		reweight_task(p, prio);
-		if (task_has_user_policy(p)) {
-			printk(KERN_INFO "OS_PROJECT: reweight_task called\n");
-		}
+		// if (task_has_user_policy(p)) {
+		// 	printk(KERN_INFO "OS_PROJECT: reweight_task called\n");
+		// }
 	} else {
 		load->weight = scale_load(sched_prio_to_weight[prio]);
 		load->inv_weight = sched_prio_to_wmult[prio];
-		if (task_has_user_policy(p)) {
-			printk(KERN_INFO "OS_PROJECT: load->weight = %d\n", load->weight);
-		}
+		// if (task_has_user_policy(p)) {
+		// 	printk(KERN_INFO "OS_PROJECT: load->weight = %d\n", load->weight);
+		// }
 	}
 }
 
@@ -2121,6 +2121,9 @@ static inline void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 	}
 
 	uclamp_rq_inc(rq, p);
+	// if (p->policy == SCHED_USER){
+	// 	printk(KERN_INFO "OS_PROJECT: enqueue_task called for pid %d\n", p->pid);
+	// }
 	p->sched_class->enqueue_task(rq, p, flags);
 
 	if (sched_core_enabled(rq))
@@ -2151,6 +2154,9 @@ void activate_task(struct rq *rq, struct task_struct *p, int flags)
 	if (flags & ENQUEUE_MIGRATED)
 		sched_mm_cid_migrate_to(rq, p);
 
+	// if (p->policy == SCHED_USER){
+	// 	printk(KERN_INFO "OS_PROJECT: activate_task called for pid %d\n", p->pid);
+	// }
 	enqueue_task(rq, p, flags);
 
 	WRITE_ONCE(p->on_rq, TASK_ON_RQ_QUEUED);
@@ -7894,7 +7900,10 @@ change:
 		 */
 		if (oldprio < p->prio)
 			queue_flags |= ENQUEUE_HEAD;
-
+		
+		// if (p->policy == SCHED_USER){
+		// 	printk(KERN_INFO "OS_PROJECT: __sched_setscheduler change: called for pid %d\n", p->pid);
+		// }
 		enqueue_task(rq, p, queue_flags);
 	}
 	if (running)
@@ -7935,10 +7944,9 @@ static int _sched_setscheduler(struct task_struct *p, int policy,
 		.sched_nice	= PRIO_TO_NICE(p->static_prio),
 	};
 
-	if (policy == 7) {
-		/* print something to the console */
-		printk(KERN_INFO "OS_PROJECT: scheduling job with SCHED_USER policy %d\n", policy);
-	}
+	// if (policy == 7) {
+	// 	printk(KERN_INFO "OS_PROJECT: scheduling job with SCHED_USER policy %d\n", policy);
+	// }
 
 	/* Fixup the legacy SCHED_RESET_ON_FORK hack. */
 	if ((policy != SETPARAM_POLICY) && (policy & SCHED_RESET_ON_FORK)) {
