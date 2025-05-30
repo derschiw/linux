@@ -319,8 +319,14 @@ static u64 __calc_delta_user(u64 delta_exec, unsigned long weight,
 			struct load_weight *lw, kuid_t uid)
 {
 	// TODO: Add logic here. We call __calc_delta for now to keep stuff running.
-	printk(KERN_DEBUG "OS_PROJECT: __calc_delta_user called\n");
-	return __calc_delta(delta_exec, weight, lw);
+	// printk(KERN_DEBUG "OS_PROJECT: __calc_delta_user called\n");
+	if (uid_eq(uid, GLOBAL_ROOT_UID)) {
+		// If the task is root we increase the weight
+		return __calc_delta(delta_exec, weight / 2, lw);
+	} else {
+		// For non-root users, we proceed normal
+		return __calc_delta(delta_exec, weight, lw);
+	}
 }
 
 /*
@@ -338,21 +344,14 @@ static u64 __calc_delta_user(u64 delta_exec, unsigned long weight,
 
 static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
 {
+	// Filter for SCHED_USER policy
+	struct task_struct *p = task_of(se);
+	if (task_has_user_policy(p)) {
+		delta = __calc_delta_user(delta, NICE_0_LOAD, &se->load, p->cred->uid);
+	}
+	//printk(KERN_DEBUG "OS_PROJECT: calc_delta_fair called\n");
 	if (unlikely(se->load.weight != NICE_0_LOAD)) {
-		if (entity_is_task(se)) {
-			// Get the task from the sched_entity
-			struct task_struct *p = task_of(se);
-
-			// Filter for SCHED_USER policy
-			if (task_has_user_policy(p)) {
-				delta = __calc_delta_user(delta, NICE_0_LOAD, &se->load, p->cred->uid);
-			} else {
-			// Proceed normal if task does not have SCHED_USER policy
-				delta = __calc_delta(delta, NICE_0_LOAD, &se->load);
-			}
-		} else {
-			delta = __calc_delta(delta, NICE_0_LOAD, &se->load);
-		}
+		delta = __calc_delta(delta, NICE_0_LOAD, &se->load);
 	}
 
 	return delta;
@@ -1220,6 +1219,10 @@ static void update_curr(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *curr = cfs_rq->curr;
 	s64 delta_exec;
+	//if (task_has_user_policy(task_of(curr))) {
+	//	printk(KERN_INFO "OS_PROJECT: update_curr called for SCHED_USER task\n");
+	//}
+
 
 	if (unlikely(!curr))
 		return;
