@@ -37,6 +37,7 @@
 #include <linux/sched/cputime.h>
 #include <linux/sched/isolation.h>
 #include <linux/sched/nohz.h>
+#include <linux/sched/usersched.h>
 
 #include <linux/cpuidle.h>
 #include <linux/interrupt.h>
@@ -346,7 +347,10 @@ static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
 {
 	// Filter for SCHED_USER policy
 	struct task_struct *p = task_of(se);
+	
 	if (task_has_user_policy(p)) {
+		// printk(KERN_DEBUG "OS_PROJECT: function call count %lu on comm %s\n", count, p->comm);
+
 		delta = __calc_delta_user(delta, NICE_0_LOAD, &se->load, p->cred->uid);
 	}
 	//printk(KERN_DEBUG "OS_PROJECT: calc_delta_fair called\n");
@@ -5407,6 +5411,11 @@ static void enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	if (curr)
 		place_entity(cfs_rq, se, flags);
 
+	struct task_struct *p = task_of(se);
+	if (task_has_user_policy(p)) {
+		printk(KERN_DEBUG "OS_PROJECT: __enqueue_entity called\n");
+	} 
+
 	update_curr(cfs_rq);
 
 	/*
@@ -6885,6 +6894,12 @@ static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	struct sched_entity *se = &p->se;
 	int idle_h_nr_running = task_has_idle_policy(p);
 	int task_new = !(flags & ENQUEUE_WAKEUP);
+	
+
+	if (task_has_user_policy(p)) {
+		unsigned long count = usched_update_usage(p->cred->uid, p->comm); 
+		printk(KERN_DEBUG "OS_PROJECT: new task called. Count: %ld, comm: %s\n", count, p->comm);
+	} 
 
 	/*
 	 * The code below (indirectly) updates schedutil which looks at
