@@ -3,5 +3,6 @@
 #include <linux/uidgid.h> 
 
 long usched_update_usage(kuid_t uid, void *func);
+long usched_get_usage(kuid_t uid, const char *comm);
 
 #endif
