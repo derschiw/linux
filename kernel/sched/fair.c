@@ -317,17 +317,19 @@ static u64 __calc_delta(u64 delta_exec, unsigned long weight,
  * 
 */
 static u64 __calc_delta_user(u64 delta_exec, unsigned long weight,
-			struct load_weight *lw, kuid_t uid)
+			struct load_weight *lw, long count)
 {
 	// TODO: Add logic here. We call __calc_delta for now to keep stuff running.
 	// printk(KERN_DEBUG "OS_PROJECT: __calc_delta_user called\n");
-	if (uid_eq(uid, GLOBAL_ROOT_UID)) {
-		// If the task is root we increase the weight
-		return __calc_delta(delta_exec, weight / 2, lw);
-	} else {
-		// For non-root users, we proceed normal
-		return __calc_delta(delta_exec, weight, lw);
-	}
+	// if (uid_eq(uid, GLOBAL_ROOT_UID)) {
+	// 	// If the task is root we increase the weight
+	// 	return __calc_delta(delta_exec, weight / 2, lw);
+	// } else {
+	// 	// For non-root users, we proceed normal
+	// 	return __calc_delta(delta_exec, weight, lw);
+	// }
+	// printk(KERN_INFO "OS_PROJECT: __calc_delta_user weight = %ld, scaled to =  %i\n", weight, usched_scale_weight(weight, count));
+	return __calc_delta(delta_exec, usched_scale_weight(weight, count), lw);
 }
 
 /*
@@ -349,9 +351,7 @@ static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
 	struct task_struct *p = task_of(se);
 	
 	if (task_has_user_policy(p)) {
-		// printk(KERN_DEBUG "OS_PROJECT: function call count %lu on comm %s\n", count, p->comm);
-
-		delta = __calc_delta_user(delta, NICE_0_LOAD, &se->load, p->cred->uid);
+		delta = __calc_delta_user(delta, NICE_0_LOAD, &se->load, usched_get_usage(p->cred->uid, p->comm));
 	}
 	//printk(KERN_DEBUG "OS_PROJECT: calc_delta_fair called\n");
 	if (unlikely(se->load.weight != NICE_0_LOAD)) {
@@ -5411,10 +5411,10 @@ static void enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	if (curr)
 		place_entity(cfs_rq, se, flags);
 
-	struct task_struct *p = task_of(se);
-	if (task_has_user_policy(p)) {
-		printk(KERN_DEBUG "OS_PROJECT: __enqueue_entity called\n");
-	} 
+	// struct task_struct *p = task_of(se);
+	// if (task_has_user_policy(p)) {
+	// 	printk(KERN_DEBUG "OS_PROJECT: __enqueue_entity called\n");
+	// } 
 
 	update_curr(cfs_rq);
 

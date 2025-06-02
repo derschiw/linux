@@ -5,7 +5,7 @@
 #include <linux/jhash.h>
 #include <linux/string.h>
 #include <linux/sched.h>
-
+#include <linux/log2.h>
 /*
   * Usersched - User-based function tracking
   *
@@ -27,6 +27,11 @@
 
 // Create the hash table (2^10 = 1024 entries)
 #define USCHED_HASH_BITS 10
+#define USCHED_LOG_MIN_COUNT 0  // log2(1)
+#define USCHED_LOG_MAX_COUNT 16 // log2(65536)
+#define USCHED_SCALE_FACTOR 8 
+#define USCHED_SHIFT 10 // Scale by 1024 (+/- 1%)
+#define USCHED_RECIPROCAL 64 // this should be = (1 << 10) / 16 = 1024 / 16 = 64
 DEFINE_HASHTABLE(function_usage_ht, USCHED_HASH_BITS);
 
 
@@ -98,4 +103,24 @@ long usched_get_usage(kuid_t uid, const char *comm) {
     }
     // Function not used yet.
     return 0;
+}
+
+// Scale the usage count to a value between 1 and 16
+static inline int usched_scale_usage(int exec_count){
+    int logCount = ilog2(exec_count);
+    // Should be this, but we can make it simpler
+   // 1 + (2*USCHED_SCALE_FACTOR - 1) * (logCount - USCHED_LOG_MIN_COUNT) / (USCHED_LOG_MAX_COUNT - USCHED_LOG_MIN_COUNT);
+   // = 1 + (2*USCHED_SCALE_FACTOR - 1) * logCount / USCHED_LOG_MAX_COUNT;
+   // We dont like division use we use shifting instead (fixed point arithmetic)
+   // int scaled = ((A * B) * RECIP) >> SHIFT;
+
+    return 1 + ((2*USCHED_SCALE_FACTOR - 1) * logCount * USCHED_RECIPROCAL ) >> USCHED_SHIFT;
+}
+
+// Now scale the weight directly
+long usched_scale_weight(long weight, int exec_count) {
+    // Scale the weight by the usage count
+    int scaled_usage = usched_scale_usage(exec_count);
+    // Scale the weight by the usage count
+    return (weight * scaled_usage) >> USCHED_SHIFT;
 }
