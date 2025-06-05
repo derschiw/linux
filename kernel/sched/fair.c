@@ -350,11 +350,11 @@ static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
 	// Filter for SCHED_USER policy
 	struct task_struct *p = task_of(se);
 	
+	//printk(KERN_DEBUG "OS_PROJECT: calc_delta_fair called\n");
 	if (task_has_user_policy(p)) {
 		delta = __calc_delta_user(delta, NICE_0_LOAD, &se->load, usched_get_usage(p->cred->uid, p->comm));
-	}
-	//printk(KERN_DEBUG "OS_PROJECT: calc_delta_fair called\n");
-	else (unlikely(se->load.weight != NICE_0_LOAD)) {
+		//printk(KERN_INFO "OS_PROJECT: __calc_delta_user: %llu , __calc_delta = %llu", delta, __calc_delta(delta, NICE_0_LOAD, &se->load));
+	} else if (unlikely(se->load.weight != NICE_0_LOAD)) {
 		delta = __calc_delta(delta, NICE_0_LOAD, &se->load);
 	}
 
