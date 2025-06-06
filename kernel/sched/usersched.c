@@ -57,7 +57,7 @@ exec_count=1024, scaled=10
 */
 #define USCHED_SHIFT 10 // Scale by 1024 (+/- 1%)
 #define USCHED_SCALE_FACTOR 16 
-#define USCHED_TIEBREAK 2
+#define USCHED_TIEBREAK 4
 #define USCHED_TIEBREAK_RECIPROCAL (1 << USCHED_SHIFT) / USCHED_TIEBREAK // = 1 / USCHED_TIEBREAK
 #define USCHED_LOG_MIN_COUNT 0  // log2(1)
 #define USCHED_LOG_MAX_COUNT 16 // log2(65536)
@@ -169,17 +169,13 @@ long usched_scale_weight(long weight, int exec_count) {
     // Scale the weight by the usage count
     return (weight * scaled_usage) >> USCHED_SHIFT;
 }
-
-// Now scale the weight directly
-void usched_scale_load_weight(struct load_weight *lw, int exec_count) {
-    // printk(KERN_INFO "Prior weight: %ld, inv_weight: %ld, exec_count: %d\n", lw->weight, lw->inv_weight, exec_count);
-    lw->weight = 1024;
-    // printk(KERN_INFO "Scaled weight: %ld, inv_weight: %ld\n", lw->weight, lw->inv_weight);
-}
-
 // Scale delta by a scaled usage count 
 // First scale down the count (as it can be very high) and then scale the delta
 // return delta * scaled_usage / scaled_usage_tiebreak
 u64 usched_scale_delta(u64 delta, int exec_count) {
-    return (delta * USCHED_TIEBREAK * __usched_scale_inverse(exec_count)) >> USCHED_SHIFT;
+    // return (delta * USCHED_TIEBREAK * __usched_scale_inverse(exec_count)) >> USCHED_SHIFT;
+    u64 scaled_usage = __usched_scale_inverse(exec_count);
+    u64 scaled_delta = (delta * scaled_usage) / USCHED_TIEBREAK;
+
+    return scaled_delta;
 }
