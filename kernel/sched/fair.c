@@ -331,8 +331,9 @@ static u64 __calc_delta_user(u64 delta_exec, unsigned long weight,
 	// printk(KERN_INFO "OS_PROJECT: __calc_delta_user with load_weight %ld and count %ld\n", lw->weight, count);
 
 	// printk(KERN_INFO "OS_PROJECT: __calc_delta_user weight = %ld, scaled to =  %i\n", weight, usched_scale_weight(weight, count));
-	usched_scale_load_weight(lw, count);
-	return __calc_delta(delta_exec, weight, lw);
+	// usched_scale_load_weight(lw, count);
+	// printk(KERN_INFO "Scaled delta from %llu to %llu", __calc_delta(delta_exec, weight, lw), usched_scale_delta(__calc_delta(delta_exec, weight, lw), count));
+	return usched_scale_delta(__calc_delta(delta_exec, weight, lw), count);
 }
 
 /*

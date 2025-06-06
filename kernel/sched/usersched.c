@@ -26,12 +26,45 @@
 */
 
 // Create the hash table (2^10 = 1024 entries)
-#define USCHED_HASH_BITS 10
+/*
+Main scaling factor (the bigger the the higher)
+
+USCHED_SCALE_FACTOR  = 4
+exec_count=   1, scaled=1
+exec_count=   2, scaled=1
+exec_count=   4, scaled=1
+exec_count=   8, scaled=2
+exec_count=  16, scaled=2
+exec_count=  32, scaled=3
+exec_count=  64, scaled=3
+exec_count= 128, scaled=4
+exec_count= 256, scaled=4
+exec_count= 512, scaled=4
+exec_count=1024, scaled=5
+
+USCHED_SCALE_FACTOR  = 16
+exec_count=   1, scaled=1
+exec_count=   2, scaled=1
+exec_count=   4, scaled=2
+exec_count=   8, scaled=3
+exec_count=  16, scaled=4
+exec_count=  32, scaled=5
+exec_count=  64, scaled=6
+exec_count= 128, scaled=7
+exec_count= 256, scaled=8
+exec_count= 512, scaled=9
+exec_count=1024, scaled=10
+*/
+#define USCHED_SHIFT 10 // Scale by 1024 (+/- 1%)
+#define USCHED_SCALE_FACTOR 16 
+#define USCHED_TIEBREAK 2
+#define USCHED_TIEBREAK_RECIPROCAL (1 << USCHED_SHIFT) / USCHED_TIEBREAK // = 1 / USCHED_TIEBREAK
 #define USCHED_LOG_MIN_COUNT 0  // log2(1)
 #define USCHED_LOG_MAX_COUNT 16 // log2(65536)
-#define USCHED_SCALE_FACTOR 8 
-#define USCHED_SHIFT 10 // Scale by 1024 (+/- 1%)
-#define USCHED_RECIPROCAL 64 // this should be = (1 << 10) / 16 = 1024 / 16 = 64
+#define USCHED_RECIPROCAL ((1 << USCHED_SHIFT) / USCHED_LOG_MAX_COUNT) // this should be = (1 << 10) / 16 = 1024 / 16 = 64
+
+// Hashtable
+#define USCHED_HASH_BITS 10
 DEFINE_HASHTABLE(function_usage_ht, USCHED_HASH_BITS);
 
 
@@ -106,22 +139,33 @@ long usched_get_usage(kuid_t uid, const char *comm) {
 }
 
 // Scale the usage count to a value between 1 and 16
-static inline int usched_scale_usage(int exec_count){
-    int logCount = ilog2(exec_count);
-    // Should be this, but we can make it simpler
-   // 1 + (2*USCHED_SCALE_FACTOR - 1) * (logCount - USCHED_LOG_MIN_COUNT) / (USCHED_LOG_MAX_COUNT - USCHED_LOG_MIN_COUNT);
-   // = 1 + (2*USCHED_SCALE_FACTOR - 1) * logCount / USCHED_LOG_MAX_COUNT;
-   // We dont like division use we use shifting instead (fixed point arithmetic)
-   // int scaled = ((A * B) * RECIP) >> SHIFT;
+// Should be this, but we can make it simpler
+// 1 + (2*USCHED_SCALE_FACTOR - 1) * (logCount - USCHED_LOG_MIN_COUNT) / (USCHED_LOG_MAX_COUNT - USCHED_LOG_MIN_COUNT);
+// = 1 + (2*USCHED_SCALE_FACTOR - 1) * logCount / USCHED_LOG_MAX_COUNT;
+// We dont like division use we use shifting instead (fixed point arithmetic)
+// int scaled = ((A * B) * RECIP) >> SHIFT;
+static inline int __usched_scale(int exec_count){
+    if (exec_count <= 0)
+        return 1;
 
-    return 1 + ((2*USCHED_SCALE_FACTOR - 1) * logCount * USCHED_RECIPROCAL ) >> USCHED_SHIFT;
+    int logCount = ilog2(exec_count);
+    int factor = (2 * USCHED_SCALE_FACTOR - 1);
+    int scaled = (factor * logCount * USCHED_RECIPROCAL) >> USCHED_SHIFT;
+
+    return 1 + scaled;
+}
+
+static inline u64 __usched_scale_inverse(int exec_count) {
+    if (exec_count <= 0)
+        exec_count = 1;
+    return (1 << USCHED_SHIFT) / exec_count;
 }
 
 // Now scale the weight directly
 long usched_scale_weight(long weight, int exec_count) {
 
     // Scale the weight by the usage count
-    int scaled_usage = usched_scale_usage(exec_count);
+    int scaled_usage = __usched_scale(exec_count);
     // Scale the weight by the usage count
     return (weight * scaled_usage) >> USCHED_SHIFT;
 }
@@ -131,4 +175,11 @@ void usched_scale_load_weight(struct load_weight *lw, int exec_count) {
     // printk(KERN_INFO "Prior weight: %ld, inv_weight: %ld, exec_count: %d\n", lw->weight, lw->inv_weight, exec_count);
     lw->weight = 1024;
     // printk(KERN_INFO "Scaled weight: %ld, inv_weight: %ld\n", lw->weight, lw->inv_weight);
+}
+
+// Scale delta by a scaled usage count 
+// First scale down the count (as it can be very high) and then scale the delta
+// return delta * scaled_usage / scaled_usage_tiebreak
+u64 usched_scale_delta(u64 delta, int exec_count) {
+    return (delta * USCHED_TIEBREAK * __usched_scale_inverse(exec_count)) >> USCHED_SHIFT;
 }
