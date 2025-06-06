@@ -119,8 +119,16 @@ static inline int usched_scale_usage(int exec_count){
 
 // Now scale the weight directly
 long usched_scale_weight(long weight, int exec_count) {
+
     // Scale the weight by the usage count
     int scaled_usage = usched_scale_usage(exec_count);
     // Scale the weight by the usage count
     return (weight * scaled_usage) >> USCHED_SHIFT;
+}
+
+// Now scale the weight directly
+void usched_scale_load_weight(struct load_weight *lw, int exec_count) {
+    // printk(KERN_INFO "Prior weight: %ld, inv_weight: %ld, exec_count: %d\n", lw->weight, lw->inv_weight, exec_count);
+    lw->weight = 1024;
+    // printk(KERN_INFO "Scaled weight: %ld, inv_weight: %ld\n", lw->weight, lw->inv_weight);
 }

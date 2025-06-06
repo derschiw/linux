@@ -328,8 +328,11 @@ static u64 __calc_delta_user(u64 delta_exec, unsigned long weight,
 	// 	// For non-root users, we proceed normal
 	// 	return __calc_delta(delta_exec, weight, lw);
 	// }
+	// printk(KERN_INFO "OS_PROJECT: __calc_delta_user with load_weight %ld and count %ld\n", lw->weight, count);
+
 	// printk(KERN_INFO "OS_PROJECT: __calc_delta_user weight = %ld, scaled to =  %i\n", weight, usched_scale_weight(weight, count));
-	return __calc_delta(delta_exec, usched_scale_weight(weight, count), lw);
+	usched_scale_load_weight(lw, count);
+	return __calc_delta(delta_exec, weight, lw);
 }
 
 /*
