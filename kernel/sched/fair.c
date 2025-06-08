@@ -55,6 +55,45 @@
 #include "sched.h"
 #include "stats.h"
 #include "autogroup.h"
+/** 
+ * OS_PROJECT: 
+ * rules for different weights by user 
+ */
+char usched_uid_weight_string[1024] = "0000:1024";
+struct usched_rule {
+    uid_t uid;
+    unsigned int weight;
+};
+struct usched_rule usched_rules[32];
+int usched_rule_count = 0;
+
+void parse_usched_uid_weights(void)
+{
+    char *entry, *input;
+    char local_copy[1024];
+    int i = 0;
+	usched_rule_count = 0;
+    memset(usched_rules, 0, sizeof(usched_rules));
+
+    strscpy(local_copy, usched_uid_weight_string, sizeof(local_copy));
+    input = local_copy;
+
+    while ((entry = strsep(&input, ",")) && i < 32) {
+        char *uid_str, *weight_str;
+        uid_str = strsep(&entry, ":");
+        weight_str = entry;
+		usched_rule_count++;
+        if (!uid_str || !weight_str || *uid_str == '\0' || *weight_str == '\0')
+            continue;
+
+        if (kstrtouint(uid_str, 10, &usched_rules[i].uid))
+            continue;
+        if (kstrtouint(weight_str, 10, &usched_rules[i].weight))
+            continue;
+
+        i++;
+    }
+}
 
 /*
  * The initial- and re-scaling of tunables is configurable
@@ -187,6 +226,43 @@ static inline void update_load_set(struct load_weight *lw, unsigned long w)
 	lw->inv_weight = 0;
 }
 
+/** 
+ * OS_PROJECT: 
+ * sysctl table to give acces to settings from userspace
+ */
+
+
+static int sysctl_usched(struct ctl_table *table, int write,
+                                    void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+    int ret;
+    ret = proc_dostring(table, write, buffer, lenp, ppos);
+
+    if (write)
+        parse_usched_uid_weights();
+
+    return ret;
+}
+
+static struct ctl_table usched_sysctl_table[] = {
+    {
+        .procname   = "usched_uid_weight",
+        .data       = usched_uid_weight_string,
+        .maxlen     = sizeof(usched_uid_weight_string),
+        .mode       = 0644,
+        .proc_handler = sysctl_usched,
+    },
+    {}
+};
+
+static int __init usched_sysctl_init(void)
+{
+    register_sysctl_init("kernel",usched_sysctl_table);
+    parse_usched_uid_weights();
+    return 0;
+}
+
+late_initcall(usched_sysctl_init);
 /*
  * Increase the granularity value when there are more CPUs,
  * because with more CPUs the 'effective latency' as visible
@@ -356,8 +432,13 @@ static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
 	
 	//printk(KERN_DEBUG "OS_PROJECT: calc_delta_fair called\n");
 	if (task_has_user_policy(p)) {
-		delta = __calc_delta_user(delta, NICE_0_LOAD, &se->load, usched_get_usage(p->cred->uid, p->comm));
-		//printk(KERN_INFO "OS_PROJECT: __calc_delta_user: %llu , __calc_delta = %llu", delta, __calc_delta(delta, NICE_0_LOAD, &se->load));
+		int user_scale = 1024;
+		for (int i = 0; i < usched_rule_count; i++) {
+			if( usched_rules[i].uid == __kuid_val(p->cred->uid)){
+				user_scale = usched_rules[i].weight;
+			}
+		}
+		delta = ((__calc_delta_user(delta, NICE_0_LOAD, &se->load, usched_get_usage(p->cred->uid, p->comm)))*user_scale) >> 10;
 	} else if (unlikely(se->load.weight != NICE_0_LOAD)) {
 		delta = __calc_delta(delta, NICE_0_LOAD, &se->load);
 	}
