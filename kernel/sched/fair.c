@@ -59,7 +59,7 @@
  * OS_PROJECT: 
  * rules for different weights by user 
  */
-char usched_uid_weight_string[1024] = "0000:1024";
+char usched_uid_weight_string[1024] = "0000:2048";
 struct usched_rule {
     uid_t uid;
     unsigned int weight;
@@ -262,7 +262,7 @@ static int __init usched_sysctl_init(void)
     return 0;
 }
 
-late_initcall(usched_sysctl_init);
+late_initcall(cd );
 /*
  * Increase the granularity value when there are more CPUs,
  * because with more CPUs the 'effective latency' as visible
