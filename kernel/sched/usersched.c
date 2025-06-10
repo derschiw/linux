@@ -93,28 +93,24 @@ static inline u64 hash_func(const struct usage_key *key) {
     return hash_64((uid_val << 32) ^ name_hash, USCHED_HASH_BITS);
 }
 
-// Compare the uid and comm with the key to make sure the 
-// hash is accessed correctly.
-static inline bool cmp_uid_comm(kuid_t uid, const char *comm, struct usage_key *key) {
-    key->uid = uid;
-    strscpy(key->comm, comm, TASK_COMM_LEN);
-    return uid_eq(key->uid, key->uid) && strncmp(key->comm, comm, TASK_COMM_LEN) == 0;
-}
 
 // Get the usage count for function and update its value
 long usched_update_usage(kuid_t uid, const char *comm) {
     struct function_usage *entry;
     struct usage_key key;
 
+    key.uid = uid;
+    strscpy(key.comm, comm, TASK_COMM_LEN);
+
     hash_for_each_possible(function_usage_ht, entry, hnode, hash_func(&key)) {
-        if (cmp_uid_comm(uid, comm, &entry->key)) {
+        if (uid_eq(entry->key.uid, uid) &&
+            strncmp(entry->key.comm, comm, TASK_COMM_LEN) == 0) {
             entry->count++;
             return entry->count;
         }
     }
-    entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 
-    // Catch memory allocation failure
+    entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
     if (!entry)
         return -ENOMEM;
 
@@ -124,17 +120,19 @@ long usched_update_usage(kuid_t uid, const char *comm) {
     return 1;
 }
 
-// Get the usage count 
 long usched_get_usage(kuid_t uid, const char *comm) {
     struct function_usage *entry;
     struct usage_key key;
 
+    key.uid = uid;
+    strscpy(key.comm, comm, TASK_COMM_LEN);
+
     hash_for_each_possible(function_usage_ht, entry, hnode, hash_func(&key)) {
-        if (cmp_uid_comm(uid, comm, &entry->key)) {
+        if (uid_eq(entry->key.uid, uid) &&
+            strncmp(entry->key.comm, comm, TASK_COMM_LEN) == 0) {
             return entry->count;
         }
     }
-    // Function not used yet.
     return 0;
 }
 
